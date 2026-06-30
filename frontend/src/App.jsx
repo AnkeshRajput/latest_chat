@@ -1,8 +1,20 @@
-import React from 'react'
+import './App.css'
+import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/react'
 
-const App = () => {
+function App() {
   return (
-    <div className='text-2xl font-bold text text-blue-600'>App</div>
+    <>
+    <div className='text-blue-500'>MY APP</div>
+      <header>
+        <Show when="signed-out">
+          <SignInButton mode="modal" />
+          <SignUpButton mode="modal" />
+        </Show>
+        <Show when="signed-in">
+          <UserButton />
+        </Show>
+      </header>
+    </>
   )
 }
 
