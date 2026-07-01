@@ -13,9 +13,14 @@ router.post("/", async (req, res) => {
     }
 
     // clerk's verifier expects a Web Request with the raw body; express.raw gives a Buffer.
+    console.log("Clerk webhook incoming headers:", req.headers);
     const payload = Buffer.isBuffer(req.body)
       ? req.body.toString("utf8")
       : String(req.body);
+    console.log("Clerk webhook payload length:", payload?.length);
+    if (payload && payload.length > 0)
+      console.log("Clerk webhook payload sample:", payload.slice(0, 100));
+
     const request = new Request("http://internal/webhooks/clerk", {
       method: "POST",
       headers: new Headers(req.headers),
@@ -23,7 +28,9 @@ router.post("/", async (req, res) => {
     });
 
     // throws if the signature is wrong or the body was tampered with; only then do we trust evt.
+    console.log("Using signing secret present:", Boolean(signingSecret));
     const evt = await verifyWebhook(request, { signingSecret });
+    console.log("Clerk webhook verified event type:", evt?.type);
 
     if (evt.type === "user.created" || evt.type === "user.updated") {
       const u = evt.data;
@@ -38,23 +45,32 @@ router.post("/", async (req, res) => {
         email?.split("@")[0] ||
         "User";
 
-      await User.findOneAndUpdate(
-        { clerkId: u.id },
-        {
-          $set: {
-            clerkId: u.id,
-            email,
-            fullName,
-            profilePic: u.image_url ?? "",
-            password: "",
+      try {
+        const result = await User.findOneAndUpdate(
+          { clerkId: u.id },
+          {
+            $set: {
+              clerkId: u.id,
+              email,
+              fullName,
+              profilePic: u.image_url ?? "",
+              password: "",
+            },
           },
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true },
-      );
+          { new: true, upsert: true, setDefaultsOnInsert: true },
+        );
+        console.log("Clerk webhook - upserted/updated user:", result);
+      } catch (mongoErr) {
+        console.error("Clerk webhook - failed to upsert user:", mongoErr);
+        throw mongoErr;
+      }
     }
 
     if (evt.type === "user.deleted") {
-      if (evt.data.id) await User.findOneAndDelete({ clerkId: evt.data.id });
+      if (evt.data.id) {
+        const del = await User.findOneAndDelete({ clerkId: evt.data.id });
+        console.log("Clerk webhook - deleted user:", del);
+      }
     }
 
     res.status(200).json({ received: true });
