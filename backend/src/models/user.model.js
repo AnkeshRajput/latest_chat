@@ -2,18 +2,21 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    fullname: {
+    fullName: {
       type: String,
       required: true,
+      trim: true,
     },
     email: {
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
     },
     password: {
       type: String,
-      required: true,
+      default: "",
     },
     profilePic: {
       type: String,
@@ -22,6 +25,8 @@ const userSchema = new mongoose.Schema(
     clerkId: {
       type: String,
       required: true,
+      unique: true,
+      index: true,
     },
   },
   { timestamps: true },
