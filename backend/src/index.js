@@ -19,7 +19,7 @@ app.use(cors({
 }));
 app.use(clerkMiddleware());
 
-app.get("/", (req, res) => {
+app.get("/hello", (req, res) => {
   res.send("Hello i am Ankesh");
 });
 
