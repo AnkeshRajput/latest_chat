@@ -37,4 +37,5 @@ const PORT = process.env.PORT;
 app.listen(PORT, async () => {
   await connectDB();
   console.log(`server is running on port ${PORT}`);
+  if (process.env.NODE_ENV === "production") job.start();
 });
