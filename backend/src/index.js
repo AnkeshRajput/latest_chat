@@ -9,6 +9,9 @@ import { connectDB } from "./lib/db.js";
 import User from "./models/user.model.js";
 import { clerkMiddleware } from "@clerk/express";
 import clerkWebhook from "./webhooks/clerk.webhook.js";
+import dns from "dns";
+
+dns.setServers(["1.1.1.1", "1.0.0.1"]);
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const app = express();
