@@ -5,9 +5,9 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "app.js",
+  "main": "index.js",
   "scripts": {
-    "dev": "node --watch src/app.js"
+    "dev": "node --watch src/index.js"
   },
   "dependencies": {
     "@clerk/express": "^2.1.33",
