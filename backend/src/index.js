@@ -9,6 +9,8 @@ import { connectDB } from "./lib/db.js";
 import User from "./models/user.model.js";
 import { clerkMiddleware } from "@clerk/express";
 import clerkWebhook from "./webhooks/clerk.webhook.js";
+import authRoutes from "./routes/auth.route.js";
+
 import dns from "dns";
 
 dns.setServers(["1.1.1.1", "1.0.0.1"]);
@@ -36,6 +38,8 @@ app.use(clerkMiddleware());
 app.get("/hello", (req, res) => {
   res.send("Hello i am Ankesh");
 });
+app.use("/api/auth", authRoutes);
+
 
 if (fs.existsSync(publicdir)) {
   app.use(express.static(publicdir));

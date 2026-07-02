@@ -1,7 +1,7 @@
-import express from "express";
+export async function checkAuth(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
-const router = express.Router();
-
-router.get("/check", checkAuth)
-
-export default router;
+  res.status(200).json(req.user);
+}
