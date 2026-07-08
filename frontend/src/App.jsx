@@ -1,20 +1,27 @@
 import './App.css'
-import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/react'
+import { Navigate, Route, Routes } from "react-router";
+import { ThemeProvider } from './context/ThemeContext'
+import { WallpaperProvider } from './context/WallpaperContext'
+import ChatPage from './pages/ChatPage'
+import AuthPage from './pages/AuthPage'
 
 function App() {
   return (
-    <>
-    <div className='text-blue-500'>MY APP</div>
-      <header>
-        <Show when="signed-out">
-          <SignInButton mode="modal" />
-          <SignUpButton mode="modal" />
-        </Show>
-        <Show when="signed-in">
-          <UserButton />
-        </Show>
-      </header>
-    </>
+
+    <ThemeProvider>
+      <WallpaperProvider>
+        <Routes>
+          <Route path="/" element={<ChatPage /> } />
+          <Route
+            path="/auth"
+            element={<AuthPage />}
+          />
+        </Routes>
+      </WallpaperProvider>
+    </ThemeProvider>
+    
+
+
   )
 }
 
