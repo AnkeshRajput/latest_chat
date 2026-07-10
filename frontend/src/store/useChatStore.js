@@ -5,6 +5,40 @@ import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 import toast from "react-hot-toast";
 
+function playIncomingMessageSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    // Sweet double-chime tone using Web Audio API
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(880, now); // A5
+    gain1.gain.setValueAtTime(0.12, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.3);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1320, now + 0.08); // E6
+    gain2.gain.setValueAtTime(0.12, now + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.4);
+  } catch (e) {
+    console.error("Audio chime playback failed:", e);
+  }
+}
+
 export const useChatStore = create(
   persist(
     (set, get) => ({
@@ -25,11 +59,13 @@ export const useChatStore = create(
       getUsers: async () => {
         set({ isUsersLoading: true });
         try {
-          const res = await axiosInstance.get("/messages/users");
+          // use public users endpoint which doesn't require the server-side auth cookie
+          const res = await axiosInstance.get("/users");
           set((state) => ({
             users: res.data,
             selectedUser:
-              state.selectedUser && res.data.some((user) => user._id === state.selectedUser._id)
+              state.selectedUser &&
+              res.data.some((user) => user._id === state.selectedUser._id)
                 ? state.selectedUser
                 : null,
           }));
@@ -59,7 +95,9 @@ export const useChatStore = create(
           const res = await axiosInstance.get(`/messages/${userId}`);
           set({ messages: res.data });
         } catch (error) {
-          toast.error(error.response?.data?.message || "Failed to load messages");
+          toast.error(
+            error.response?.data?.message || "Failed to load messages",
+          );
         } finally {
           set({ isMessagesLoading: false });
         }
@@ -70,36 +108,48 @@ export const useChatStore = create(
         if (!selectedUser) return false;
 
         try {
-          const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+          const res = await axiosInstance.post(
+            `/messages/send/${selectedUser._id}`,
+            messageData,
+          );
           set({ messages: [...messages, res.data], composerText: "" });
           get().getConversations();
           return true;
         } catch (error) {
-          toast.error(error.response?.data?.message || "Failed to send message");
+          toast.error(
+            error.response?.data?.message || "Failed to send message",
+          );
           return false;
         }
       },
 
-      subscribeToMessages: (userId) => {
-        if (!userId) return;
+      subscribeToMessages: () => {},
+      unsubscribeFromMessages: () => {},
 
-        const socket = useAuthStore.getState().socket;
-        if (!socket) return;
+      handleNewMessage: (newMessage) => {
+        const { selectedUser, messages, isSoundEnabled } = get();
 
-        socket.off("newMessage");
-        socket.on("newMessage", (newMessage) => {
-          // if im not the receiver don't do anything just return
-          if (String(newMessage.senderId) !== String(userId)) return;
+        // Deduplicate messages
+        const exists = messages.some((m) => m._id === newMessage._id);
+        if (exists) return;
 
-          set({ messages: [...get().messages, newMessage] });
+        // Append message to chat screen if relevant to the current conversation
+        if (
+          selectedUser &&
+          (String(newMessage.senderId) === String(selectedUser._id) ||
+            String(newMessage.receiverId) === String(selectedUser._id))
+        ) {
+          set({ messages: [...messages, newMessage] });
+        }
 
-          get().getConversations();
-        });
-      },
+        // Always refresh sidebar list order and previews
+        get().getConversations();
 
-      unsubscribeFromMessages: () => {
-        const socket = useAuthStore.getState().socket;
-        socket?.off("newMessage");
+        // Play incoming notification chime if enabled and sent by someone else
+        const currentUserId = useAuthStore.getState().authUser?._id;
+        if (isSoundEnabled && String(newMessage.senderId) !== String(currentUserId)) {
+          playIncomingMessageSound();
+        }
       },
 
       setSelectedUser: (selectedUser) => set({ selectedUser }),
@@ -109,9 +159,11 @@ export const useChatStore = create(
           activeConversationId,
           selectedUser:
             state.users.find((user) => user._id === activeConversationId) ||
-            state.conversations.find((user) => user._id === activeConversationId) ||
+            state.conversations.find(
+              (user) => user._id === activeConversationId,
+            ) ||
             null,
-          messages: activeConversationId ? state.messages : [],
+          messages: [], // Clear messages immediately on chat swap to prevent showing previous messages
         }));
       },
 

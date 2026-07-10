@@ -8,19 +8,24 @@ import { SearchField, Tabs } from "@heroui/react";
 import { MessageSquareIcon, UsersIcon } from "lucide-react";
 import { ConversationRow } from "./ConversationRow";
 
-function mapUserForList(user, onlineUsers) {
+function mapUserForList(user, onlineUsers, authUser) {
+  const isMe = authUser && String(user._id) === String(authUser._id);
+  const displayName = isMe ? "You" : user.fullName;
   return {
     conversationId: user._id,
     id: user._id,
-    name: user.fullName,
+    name: displayName,
     avatarUrl: user.profilePic,
     initials: getInitials(user.fullName),
-    isOnline: onlineUsers.includes(user._id),
+    isOnline: isMe ? true : onlineUsers.includes(user._id),
+    isMe,
+    originalName: user.fullName,
     peer: {
-      name: user.fullName,
+      name: displayName,
       avatarUrl: user.profilePic,
       initials: getInitials(user.fullName),
-      isOnline: onlineUsers.includes(user._id),
+      isOnline: isMe ? true : onlineUsers.includes(user._id),
+      subtitle: isMe ? "Message yourself" : user.email,
     },
   };
 }
@@ -40,22 +45,31 @@ function ChatSidebar() {
   const setActiveConversationId = useChatStore((state) => state.setActiveConversationId);
 
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
+  const authUser = useAuthStore((state) => state.authUser);
 
   const { activeConversationId, isLargeScreen } = useSelectedConversation();
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
-  const conversationUsers = conversations.map((user) => mapUserForList(user, onlineUsers));
-  const allUsers = users.map((user) => mapUserForList(user, onlineUsers));
+  const conversationUsers = conversations.map((user) => mapUserForList(user, onlineUsers, authUser));
+  const allUsers = users.map((user) => mapUserForList(user, onlineUsers, authUser));
 
   const filteredConversations = normalizedSearchQuery
-    ? conversationUsers.filter((conversation) =>
-        conversation.peer.name.toLowerCase().includes(normalizedSearchQuery),
-      )
+    ? conversationUsers.filter((conversation) => {
+        const nameMatch = conversation.peer.name.toLowerCase().includes(normalizedSearchQuery);
+        const originalNameMatch = conversation.originalName?.toLowerCase().includes(normalizedSearchQuery);
+        const uMatch = conversation.isMe && (normalizedSearchQuery === "u" || normalizedSearchQuery === "you");
+        return nameMatch || originalNameMatch || uMatch;
+      })
     : conversationUsers;
 
   const filteredUsers = normalizedSearchQuery
-    ? allUsers.filter((user) => user.name.toLowerCase().includes(normalizedSearchQuery))
+    ? allUsers.filter((user) => {
+        const nameMatch = user.name.toLowerCase().includes(normalizedSearchQuery);
+        const originalNameMatch = user.originalName?.toLowerCase().includes(normalizedSearchQuery);
+        const uMatch = user.isMe && (normalizedSearchQuery === "u" || normalizedSearchQuery === "you");
+        return nameMatch || originalNameMatch || uMatch;
+      })
     : allUsers;
 
   return (

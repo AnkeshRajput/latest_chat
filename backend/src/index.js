@@ -19,9 +19,10 @@ import dns from "dns";
 
 dns.setServers(["1.1.1.1", "1.0.0.1"]);
 
+import { app, server } from "./lib/socket.js";
+
 const FRONTEND_URL = process.env.FRONTEND_URL;
-const app = express();
-const publicdir = path.join(process.cwd(), "public");
+const publicDir = path.join(process.cwd(), "public");
 
 // it's important that you don't parse the webhook event data, it should be in the raw format
 app.use(
@@ -44,23 +45,32 @@ app.get("/hello", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+// Public: return a list of users (used by the UI sidebar). This endpoint intentionally
+// does not require Clerk authentication so the client can populate the list quickly.
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await User.find({}).select("-clerkId");
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error in public users endpoint:", error?.message || error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 app.use("/api/messages", messageRoutes);
 
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
 
-
-if (fs.existsSync(publicdir)) {
-  app.use(express.static(publicdir));
-
-  app.get("/{*any}", (req, res, next) => {
-    res.sendFile(path.join(publicDir, "index.html"), (err) => next(err));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(publicDir, "index.html"));
   });
 }
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   await connectDB();
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`server is running on port ${PORT}`);
     if (process.env.NODE_ENV === "production") job.start();
   });

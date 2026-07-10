@@ -19,6 +19,9 @@ export function ConversationRow({ user, selected, onSelect }) {
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold">{user.name}</p>
+        {user.isMe ? (
+          <p className="truncate text-xs text-muted mt-0.5">Message yourself</p>
+        ) : null}
       </div>
     </button>
   );

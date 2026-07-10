@@ -19,6 +19,9 @@ export function getInitials(name) {
 // 2. User → peer
 
 function mapUserToConversation({ user, messages, authUser, onlineUsers }) {
+  const isMe = authUser && String(user._id) === String(authUser._id);
+  const displayName = isMe ? "You" : user.fullName;
+
   const mappedMessages = messages.map((message) => ({
     id: message._id,
     role: String(message.senderId) === String(authUser?._id) ? "me" : "them",
@@ -31,9 +34,9 @@ function mapUserToConversation({ user, messages, authUser, onlineUsers }) {
   return {
     id: user._id,
     peer: {
-      name: user.fullName,
-      subtitle: user.email,
-      isOnline: onlineUsers.includes(user._id),
+      name: displayName,
+      subtitle: isMe ? "Message yourself" : user.email,
+      isOnline: isMe ? true : onlineUsers.includes(user._id),
       avatarUrl: user.profilePic,
       initials: getInitials(user.fullName),
     },
